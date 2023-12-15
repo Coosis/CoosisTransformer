@@ -21,7 +21,7 @@ eval_iters = 200
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-max_lenth = 100
+max_lenth = 1000
 
 root_path = os.path.dirname(__file__)  # Get the directory of the current file
 def load_vocab(path):
@@ -46,14 +46,26 @@ else:
 
 vtoi = { v:i for i,v in enumerate(vocab) }
 itov = { i:t for i,t in enumerate(vocab) }
+max_len = len(max(vocab, key=len))
 def encode(s): 
     encoded = []
-    while len(s) > 0:
-        for v in reversed(vocab):
-            if s.startswith(v):
-                encoded.append(vtoi[v])
-                s = s[len(v):]
+    tokens = [vtoi[c] for c in s]
+    for i in range(max_len):
+        encoded = []
+        j = 0
+        while j <= len(tokens) - 1:
+            if j == len(tokens) - 1:
+                encoded.append(tokens[j])
+                j += 1
+            elif itov[tokens[j]]+itov[tokens[j+1]] in vtoi:
+                encoded.append(vtoi[itov[tokens[j]]+itov[tokens[j+1]]])
+                j += 2
+            else:
+                encoded.append(tokens[j])
+                j += 1
+        tokens = encoded
     return encoded
+
 def decode(l):
     return ''.join([itov[i] for i in l])
 

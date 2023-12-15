@@ -1,6 +1,6 @@
 import os
 
-new_token = 230
+new_token = 0
 
 root_path = os.path.dirname(__file__)
 
@@ -39,34 +39,35 @@ vocab = sorted(vocab)
 print("Original vocab size: ", len(vocab))
 print(f"First 10 words: {vocab[:10]}")
 
-occurrences = []
+def expand_vocab(vocab, count):
+    if count == 0:
+        return vocab
+    occurrences = []
+    for fir in vocab:
+        for sec in vocab:
+            if fir == sec:
+                continue
 
-for fir in vocab:
-    for sec in vocab:
-        if fir == sec:
+            if fir + sec in vocab or sec + fir in vocab:
+                continue
+
+            pair = fir + sec
+            if pair.count('\n') > 0:
+                continue
+            occurrences.append((pair, text.count(pair)))
+    print(occurrences)
+    sorted_occ = sorted(occurrences, key=lambda x: x[1], reverse=True)
+    for p, c in sorted_occ:
+        if p in vocab:
             continue
+        vocab.append(p)
+        count -= 1
+        if count == 0:
+            break
+    
+    return vocab
 
-        if fir + sec in vocab or sec + fir in vocab:
-            continue
-
-        pair = fir + sec
-        if pair.count('\n') > 0:
-            continue
-        # print(pair)
-        occurrences.append((pair, text.count(pair)))
-
-print(occurrences)
-
-sorted_occ = sorted(occurrences, key=lambda x: x[1], reverse=True)
-
-for p, c in sorted_occ:
-    if p in vocab:
-        continue
-    vocab.append(p)
-    new_token -= 1
-    if new_token == 0:
-        break
-
+vocab = expand_vocab(vocab, new_token)
 vocab = sorted(vocab, key=lambda x: len(x))
 with open(f'{root_path}/vocab.txt', "w", encoding='utf-8') as f:
     for word in vocab:

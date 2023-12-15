@@ -11,18 +11,21 @@ root_path = os.path.dirname(__file__)  # Get the directory of the current file
 
 # hyperparameters
 n_embd = 256
-n_head = 16
+n_head = 32
 n_blocks = 8
 head_size = 32
 batch_size = 16
-block_size = 64
+block_size = 128
 dropout = 0.1
 max_iters = 2000
 eval_interval = 100
 learning_rate = 1e-3
 eval_iters = 200
 
+num_threads = 4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+multi_gpu = torch.cuda.device_count() > 1
+torch.set_num_threads(num_threads)
 
 def read_all(path):
     full_text = ""
@@ -101,14 +104,24 @@ else:
 
 vtoi = { v:i for i,v in enumerate(vocab) }
 itov = { i:t for i,t in enumerate(vocab) }
+max_len = len(max(vocab, key=len))
 def encode(s): 
     encoded = []
-    while len(s) > 0:
-        for v in reversed(vocab):
-            if s.startswith(v):
-                encoded.append(vtoi[v])
-                s = s[len(v):]
-                break
+    tokens = [vtoi[c] for c in s]
+    for i in range(max_len):
+        encoded = []
+        j = 0
+        while j <= len(tokens) - 1:
+            if j == len(tokens) - 1:
+                encoded.append(tokens[j])
+                j += 1
+            elif itov[tokens[j]]+itov[tokens[j+1]] in vtoi:
+                encoded.append(vtoi[itov[tokens[j]]+itov[tokens[j+1]]])
+                j += 2
+            else:
+                encoded.append(tokens[j])
+                j += 1
+        tokens = encoded
     return encoded
 
 def decode(l):
@@ -130,7 +143,10 @@ else:
     model.load_state_dict(torch.load(model_path))
     print("model.pth loaded successfully. ")
 
-m = model.to(device)
+
+model = model.to(device)
+if multi_gpu:
+    model = nn.DataParallel(model)
 optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
 for iter in range(max_iters):
